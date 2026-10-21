@@ -35,6 +35,12 @@
           <option value="{{ kod }}" {% if kod == woj %}selected{% endif %}>{{ nazwa }}</option>
         {% endfor %}
       </select>
+      <select name="branza">
+        <option value="">Wszystkie branże</option>
+        {% for klucz, dane in branze.items() %}
+          <option value="{{ klucz }}" {% if klucz == branza %}selected{% endif %}>{{ dane[0] }}</option>
+        {% endfor %}
+      </select>
       <input type="text" name="szukaj" value="{{ szukaj }}" placeholder="Szukaj w przedmiocie, np. komputer">
       <button type="submit">Filtruj</button>
     </form>

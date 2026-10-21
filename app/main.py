@@ -1,4 +1,5 @@
 import json
+import re
 from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -30,6 +31,18 @@ WOJEWODZTWA = {
     "PL32": "zachodniopomorskie",
 }
 
+BRANZE = {
+    "it": ("IT, sprzęt i oprogramowanie", ["30", "32", "48", "72"]),
+    "budowlane": ("Roboty budowlane", ["45"]),
+    "medyczne": ("Sprzęt i środki medyczne", ["33"]),
+    "paliwa": ("Paliwa i energia", ["09"]),
+    "zywnosc": ("Żywność", ["15"]),
+    "transport": ("Pojazdy i transport", ["34", "60"]),
+    "komunalne": ("Odpady i sprzątanie", ["90"]),
+}
+
+WZOR_CPV = re.compile(r"\d{8}-\d")
+
 
 def najnowszy_plik():
     pliki = sorted(FOLDER_DANYCH.glob("*.json"))
@@ -45,8 +58,20 @@ def czas_polski(tekst):
     return czas.astimezone(WARSZAWA).strftime("%d.%m.%Y %H:%M")
 
 
+def kody_cpv(ogloszenie):
+    return WZOR_CPV.findall(ogloszenie.get("cpvCode") or "")
+
+
+def pasuje_do_branzy(ogloszenie, branza):
+    przedrostki = BRANZE[branza][1]
+    for kod in kody_cpv(ogloszenie):
+        if kod[:2] in przedrostki:
+            return True
+    return False
+
+
 @app.get("/")
-def strona_glowna(request: Request, woj: str = "", szukaj: str = ""):
+def strona_glowna(request: Request, woj: str = "", szukaj: str = "", branza: str = ""):
     plik = najnowszy_plik()
     ogloszenia = []
     if plik:
@@ -54,6 +79,8 @@ def strona_glowna(request: Request, woj: str = "", szukaj: str = ""):
 
     if woj:
         ogloszenia = [o for o in ogloszenia if o["organizationProvince"] == woj]
+    if branza in BRANZE:
+        ogloszenia = [o for o in ogloszenia if pasuje_do_branzy(o, branza)]
     if szukaj:
         fraza = szukaj.lower()
         ogloszenia = [o for o in ogloszenia if fraza in o["orderObject"].lower()]
@@ -72,7 +99,9 @@ def strona_glowna(request: Request, woj: str = "", szukaj: str = ""):
     return szablony.TemplateResponse(request, "index.html", {
         "wiersze": wiersze,
         "wojewodztwa": WOJEWODZTWA,
+        "branze": BRANZE,
         "woj": woj,
+        "branza": branza,
         "szukaj": szukaj,
         "dzien": plik.stem if plik else "brak danych",
     })
