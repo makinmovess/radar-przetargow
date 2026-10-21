@@ -68,7 +68,7 @@ Zachowanie API odbiega w kilku miejscach od oczekiwań, na przykład parametr da
 - [x] Baza danych w Dockerze
 - [x] Panel z filtrami
 - [x] Codzienna automatyzacja
-- [ ] Cała aplikacja w kontenerach
+- [x] Cała aplikacja w kontenerach
 - [ ] CI/CD w GitHub Actions z testami i skanem bezpieczeństwa
 - [ ] Wdrożenie na serwer w chmurze
 - [ ] Ocena dopasowania przetargu do profilu firmy przez AI
