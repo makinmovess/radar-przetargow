@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Radar przetargów</title>
+  <style>
+    body { font-family: "Segoe UI", Arial, sans-serif; margin: 0; background: #f4f5f7; color: #1d1f23; }
+    header { background: #14213d; color: #fff; padding: 20px 32px; }
+    header h1 { margin: 0; font-size: 22px; }
+    header p { margin: 4px 0 0; opacity: 0.75; font-size: 14px; }
+    main { padding: 24px 32px; }
+    form { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; }
+    select, input, button { padding: 10px 12px; font-size: 14px; border: 1px solid #c9ccd3; border-radius: 6px; }
+    input { min-width: 260px; }
+    button { background: #fca311; border: none; font-weight: 600; cursor: pointer; }
+    .licznik { margin-bottom: 12px; font-size: 14px; color: #555; }
+    .tabela { overflow-x: auto; background: #fff; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    th { text-align: left; background: #e9ebef; padding: 10px 12px; }
+    td { padding: 10px 12px; border-top: 1px solid #eceef1; vertical-align: top; }
+    .numer { color: #777; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Radar przetargów</h1>
+    <p>Ogłoszenia o zamówieniu z dnia {{ dzien }}</p>
+  </header>
+  <main>
+    <form method="get">
+      <select name="woj">
+        <option value="">Cała Polska</option>
+        {% for kod, nazwa in wojewodztwa.items() %}
+          <option value="{{ kod }}" {% if kod == woj %}selected{% endif %}>{{ nazwa }}</option>
+        {% endfor %}
+      </select>
+      <input type="text" name="szukaj" value="{{ szukaj }}" placeholder="Szukaj w przedmiocie, np. komputer">
+      <button type="submit">Filtruj</button>
+    </form>
+
+    <div class="licznik">Znaleziono: {{ wiersze|length }}</div>
+
+    <div class="tabela">
+      <table>
+        <tr>
+          <th>Przedmiot zamówienia</th>
+          <th>Zamawiający</th>
+          <th>Miasto</th>
+          <th>Województwo</th>
+          <th>Termin ofert</th>
+        </tr>
+        {% for w in wiersze %}
+        <tr>
+          <td>{{ w.przedmiot }}<div class="numer">{{ w.numer }}</div></td>
+          <td>{{ w.zamawiajacy }}</td>
+          <td>{{ w.miasto }}</td>
+          <td>{{ w.wojewodztwo }}</td>
+          <td>{{ w.termin }}</td>
+        </tr>
+        {% endfor %}
+      </table>
+    </div>
+  </main>
+</body>
+</html>
