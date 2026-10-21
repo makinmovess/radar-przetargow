@@ -1,15 +1,16 @@
-import json
-import re
-from datetime import datetime
-from pathlib import Path
+import os
 from zoneinfo import ZoneInfo
 
+import psycopg
+from dotenv import load_dotenv
 from fastapi import FastAPI, Request
 from fastapi.templating import Jinja2Templates
+from psycopg.rows import dict_row
+
+load_dotenv()
 
 app = FastAPI(title="Radar przetargów")
 szablony = Jinja2Templates(directory="app/templates")
-FOLDER_DANYCH = Path("data")
 WARSZAWA = ZoneInfo("Europe/Warsaw")
 
 WOJEWODZTWA = {
@@ -41,59 +42,57 @@ BRANZE = {
     "komunalne": ("Odpady i sprzątanie", ["90"]),
 }
 
-WZOR_CPV = re.compile(r"\d{8}-\d")
+
+def adres_bazy():
+    uzytkownik = os.environ["POSTGRES_USER"]
+    haslo = os.environ["POSTGRES_PASSWORD"]
+    baza = os.environ["POSTGRES_DB"]
+    host = os.environ.get("POSTGRES_HOST", "localhost")
+    return f"postgresql://{uzytkownik}:{haslo}@{host}:5432/{baza}"
 
 
-def najnowszy_plik():
-    pliki = sorted(FOLDER_DANYCH.glob("*.json"))
-    if pliki:
-        return pliki[-1]
-    return None
-
-
-def czas_polski(tekst):
-    if not tekst:
+def czas_polski(czas):
+    if czas is None:
         return "brak"
-    czas = datetime.fromisoformat(tekst.replace("Z", "+00:00"))
     return czas.astimezone(WARSZAWA).strftime("%d.%m.%Y %H:%M")
-
-
-def kody_cpv(ogloszenie):
-    return WZOR_CPV.findall(ogloszenie.get("cpvCode") or "")
-
-
-def pasuje_do_branzy(ogloszenie, branza):
-    przedrostki = BRANZE[branza][1]
-    for kod in kody_cpv(ogloszenie):
-        if kod[:2] in przedrostki:
-            return True
-    return False
 
 
 @app.get("/")
 def strona_glowna(request: Request, woj: str = "", szukaj: str = "", branza: str = ""):
-    plik = najnowszy_plik()
-    ogloszenia = []
-    if plik:
-        ogloszenia = json.loads(plik.read_text(encoding="utf-8"))
+    warunki = ["termin_ofert > now()"]
+    parametry = []
 
     if woj:
-        ogloszenia = [o for o in ogloszenia if o["organizationProvince"] == woj]
+        warunki.append("wojewodztwo = %s")
+        parametry.append(woj)
     if branza in BRANZE:
-        ogloszenia = [o for o in ogloszenia if pasuje_do_branzy(o, branza)]
+        warunki.append("EXISTS (SELECT 1 FROM unnest(kody_cpv) AS k WHERE left(k, 2) = ANY(%s))")
+        parametry.append(BRANZE[branza][1])
     if szukaj:
-        fraza = szukaj.lower()
-        ogloszenia = [o for o in ogloszenia if fraza in o["orderObject"].lower()]
+        warunki.append("przedmiot ILIKE %s")
+        parametry.append(f"%{szukaj}%")
+
+    sql = f"""
+        SELECT bzp_number, przedmiot, zamawiajacy, miasto, wojewodztwo, termin_ofert
+        FROM przetargi
+        WHERE {" AND ".join(warunki)}
+        ORDER BY termin_ofert
+        LIMIT 500
+    """
+
+    with psycopg.connect(adres_bazy(), row_factory=dict_row) as polaczenie:
+        rekordy = polaczenie.execute(sql, parametry).fetchall()
+        ostatnie = polaczenie.execute("SELECT max(pobrano) AS czas FROM przetargi").fetchone()["czas"]
 
     wiersze = []
-    for o in ogloszenia:
+    for r in rekordy:
         wiersze.append({
-            "numer": o["bzpNumber"],
-            "przedmiot": o["orderObject"],
-            "zamawiajacy": o["organizationName"],
-            "miasto": o["organizationCity"],
-            "wojewodztwo": WOJEWODZTWA.get(o["organizationProvince"], o["organizationProvince"]),
-            "termin": czas_polski(o["submittingOffersDate"]),
+            "numer": r["bzp_number"],
+            "przedmiot": r["przedmiot"],
+            "zamawiajacy": r["zamawiajacy"],
+            "miasto": r["miasto"],
+            "wojewodztwo": WOJEWODZTWA.get(r["wojewodztwo"], r["wojewodztwo"]),
+            "termin": czas_polski(r["termin_ofert"]),
         })
 
     return szablony.TemplateResponse(request, "index.html", {
@@ -103,5 +102,5 @@ def strona_glowna(request: Request, woj: str = "", szukaj: str = "", branza: str
         "woj": woj,
         "branza": branza,
         "szukaj": szukaj,
-        "dzien": plik.stem if plik else "brak danych",
+        "ostatnie": czas_polski(ostatnie),
     })
