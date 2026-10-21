@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  testy:
+    name: Testy
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Pobierz kod
+        uses: actions/checkout@v4
+
+      - name: Ustaw Pythona
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Zainstaluj zależności
+        run: pip install -r requirements-dev.txt
+
+      - name: Uruchom testy
+        run: pytest -v
+
+  bezpieczenstwo:
+    name: Obraz i skan bezpieczeństwa
+    needs: testy
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Pobierz kod
+        uses: actions/checkout@v4
+
+      - name: Zbuduj obraz
+        run: docker build -t radar-przetargow:ci .
+
+      - name: Skan kodu i bibliotek
+        run: >
+          docker run --rm -v "${{ github.workspace }}:/src"
+          aquasec/trivy:0.72.0 fs --scanners vuln,secret
+          --severity HIGH,CRITICAL --exit-code 1 --skip-version-check /src
+
+      - name: Skan obrazu
+        run: >
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock
+          aquasec/trivy:0.72.0 image --severity CRITICAL
+          --ignore-unfixed --exit-code 1 --skip-version-check radar-przetargow:ci

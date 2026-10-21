@@ -1,4 +1,5 @@
 # Radar przetargów
+![CI](https://github.com/makinmovess/radar-przetargow/actions/workflows/ci.yml/badge.svg)
 
 Codziennie pobiera ogłoszenia o zamówieniach publicznych z Biuletynu Zamówień Publicznych i pozwala firmom szybko znaleźć przetargi z ich branży i regionu, zamiast ręcznie przeglądać kilkaset ogłoszeń dziennie.
 
@@ -69,7 +70,7 @@ Zachowanie API odbiega w kilku miejscach od oczekiwań, na przykład parametr da
 - [x] Panel z filtrami
 - [x] Codzienna automatyzacja
 - [x] Cała aplikacja w kontenerach
-- [ ] CI/CD w GitHub Actions z testami i skanem bezpieczeństwa
+- [x] CI/CD w GitHub Actions z testami i skanem bezpieczeństwa
 - [ ] Wdrożenie na serwer w chmurze
 - [ ] Ocena dopasowania przetargu do profilu firmy przez AI
 - [ ] Powiadomienia e-mail o nowych dopasowaniach
